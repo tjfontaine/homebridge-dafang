@@ -149,7 +149,12 @@ FFMPEG.prototype.handleSnapshotRequest = function(request, callback) {
   let ffmpeg = spawn(this.videoProcessor, (imageSource + ' -t 1 -s '+ resolution + ' -f image2 -').split(' '), {env: process.env});
   var imageBuffer = Buffer(0);
   this.log("Snapshot from " + this.name + " at " + resolution);
-  if(this.debug) console.log('ffmpeg '+imageSource + ' -t 1 -s '+ resolution + ' -f image2 -');
+  if(this.debug) {
+    console.log('ffmpeg '+imageSource + ' -t 1 -s '+ resolution + ' -f image2 -');
+    ffmpeg.stderr.pipe(process.stderr);
+  } else {
+    ffmpeg.stderr.resume();
+  }
   ffmpeg.stdout.on('data', function(data) {
     imageBuffer = Buffer.concat([imageBuffer, data]);
   });
@@ -333,16 +338,11 @@ FFMPEG.prototype.handleStreamRequest = function(request) {
         this.log("Start streaming video from " + this.name + " with " + width + "x" + height + "@" + vbitrate + "kBit");
         if(this.debug){
           console.log("ffmpeg " + ffmpegCommand);
+          ffmpeg.stderr.pipe(process.stderr);
+        } else {
+          ffmpeg.stderr.resume();
         }
 
-        // Always setup hook on stderr.
-        // Without this streaming stops within one to two minutes.
-        ffmpeg.stderr.on('data', function(data) {
-          // Do not log to the console if debugging is turned off
-          if(this.debug){
-            console.log(data.toString());
-          }
-        });
         let self = this;
         ffmpeg.on('error', function(error){
             self.log("An error occurs while making stream request");
