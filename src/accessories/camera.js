@@ -293,51 +293,68 @@ FFMPEG.prototype.handleStreamRequest = function(request) {
         let audioKey = sessionInfo["audio_srtp"];
         let audioSsrc = sessionInfo["audio_ssrc"];
 
-        let ffmpegCommand = this.ffmpegSource + ' -map 0:0' +
-          ' -vcodec ' + vcodec +
-          ' -pix_fmt yuv420p' +
-          ' -r ' + fps +
-          ' -f rawvideo' +
-          ' ' + additionalCommandline +
-          ' -vf scale=' + width + ':' + height +
-          ' -b:v ' + vbitrate + 'k' +
-          ' -bufsize ' + vbitrate+ 'k' +
-          ' -maxrate '+ vbitrate + 'k' +
-          ' -payload_type 99' +
-          ' -ssrc ' + videoSsrc +
-          ' -f rtp' +
-          ' -srtp_out_suite AES_CM_128_HMAC_SHA1_80' +
-          ' -srtp_out_params ' + videoKey.toString('base64') +
-          ' srtp://' + targetAddress + ':' + targetVideoPort +
+        let targetUrl = 'srtp://' + targetAddress + ':' + targetVideoPort + // TODO use a real url format
           '?rtcpport=' + targetVideoPort +
           '&localrtcpport=' + targetVideoPort +
           '&pkt_size=' + packetsize;
 
+        let ffmpegCommand = this.ffmpegSource.split(' ').concat(['-map', '0:0',
+          '-vcodec', vcodec,
+          '-pix_fmt', 'yuv420p',
+          '-r', fps,
+          '-f', 'rawvideo']);
+
+	      if (Array.isArray(additionalCommandline)) {
+          ffmpegCommand = ffmpegCommand.concat(additionalCommandline);
+        } else {
+          ffmpegCommand = ffmpegCommand.concat(additionalCommandline.split(' '));
+        }
+
+        ffmpegCommand = ffmpegCommand.concat([
+          '-vf', 'scale=' + width + ':' + height,
+          '-b:v', vbitrate+'k',
+          '-bufsize', vbitrate+'k',
+          '-maxrate', vbitrate+'k',
+          '-payload_type', '99',
+          '-ssrc', videoSsrc,
+          '-f', 'rtp',
+          '-srtp_out_suite', 'AES_CM_128_HMAC_SHA1_80',
+          '-srtp_out_params', videoKey.toString('base64'),
+	  targetUrl]);
+
         if(this.audio){
-          ffmpegCommand+= ' -map 0:1' +
-            ' -acodec ' + acodec +
-            ' -profile:a aac_eld' +
-            ' -flags +global_header' +
-            ' -f null' +
-            ' -ar ' + asamplerate + 'k' +
-            ' -b:a ' + abitrate + 'k' +
-            ' -bufsize ' + abitrate + 'k' +
-            ' -ac 1' +
-            ' -payload_type 110' +
-            ' -ssrc ' + audioSsrc +
-            ' -f rtp' +
-            ' -srtp_out_suite AES_CM_128_HMAC_SHA1_80' +
-            ' -srtp_out_params ' + audioKey.toString('base64') +
-            ' srtp://' + targetAddress + ':' + targetAudioPort +
+          // TODO use a real url format
+          let targetAudioUrl = ' srtp://' + targetAddress + ':' + targetAudioPort +
             '?rtcpport=' + targetAudioPort +
             '&localrtcpport=' + targetAudioPort +
             '&pkt_size=' + packetsize;
+          ffmpegCommand = ffmpegCommand.concat([
+            '-map', '0:1',
+            '-acodec', acodec,
+            '-profile:a', 'aac_eld',
+            '-flags', '+global_header',
+            '-f', 'null',
+            '-ar', asamplerate+'k' ,
+            '-b:a', abitrate+'k' ,
+            '-bufsize', abitrate+'k',
+            '-ac', '1',
+            '-payload_type', '110' ,
+            '-ssrc', audioSsrc,
+            '-f', 'rtp',
+            '-srtp_out_suite', 'AES_CM_128_HMAC_SHA1_80' ,
+            '-srtp_out_params', audioKey.toString('base64'),
+            targetAudioUrl]);
         }
 
-        let ffmpeg = spawn(this.videoProcessor, ffmpegCommand.split(' '), {env: process.env});
-        this.log("Start streaming video from " + this.name + " with " + width + "x" + height + "@" + vbitrate + "kBit");
         if(this.debug){
-          console.log("ffmpeg " + ffmpegCommand);
+          console.log(ffmpegCommand);
+        }
+
+        let ffmpeg = spawn(this.videoProcessor, ffmpegCommand, {env: process.env});
+
+        this.log("Start streaming video from " + this.name + " with " + width + "x" + height + "@" + vbitrate + "kBit");
+
+        if (this.debug) {
           ffmpeg.stderr.pipe(process.stderr);
         } else {
           ffmpeg.stderr.resume();
