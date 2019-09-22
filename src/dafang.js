@@ -139,11 +139,13 @@ Dafang.prototype = {
           var cameraAccessory = new homebridge.Accessory(cameraConfig.cameraName, uuid, homebridge.Categories.CAMERA)
           var newCameraConfig = cameraConfig
           newCameraConfig.name = cameraConfig.cameraName
-          const cameraRTSPStreamUrl = cameraConfig.cameraRTSPStreamUrl
+          const cameraRTSPStreamUrl = cameraConfig.cameraRTSPStreamUrl;
+          const cameraRTSPStreamProto = cameraConfig.cameraRTSPStreamProto || 'tcp';
+          const cameraRTSPImageProto = cameraConfig.cameraRTSPImageProto || 'http';
 
           var videoConfig = {}
-          videoConfig.source = '-rtsp_transport tcp -i ' + cameraRTSPStreamUrl
-          videoConfig.stillImageSource = '-rtsp_transport http -i ' + cameraRTSPStreamUrl + ' -vframes 1 -r 1'
+          videoConfig.source = '-rtsp_transport '+ cameraRTSPStreamProto +' -i ' + cameraRTSPStreamUrl
+          videoConfig.stillImageSource = '-rtsp_transport ' + cameraRTSPImageProto + ' -i ' + cameraRTSPStreamUrl + ' -vframes 1 -r 1'
           videoConfig.maxStreams = 2
           videoConfig.maxWidth = 1280
           videoConfig.maxHeight = 720
